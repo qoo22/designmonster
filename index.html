@@ -1542,18 +1542,23 @@ img{-webkit-user-drag:none;}
 }
 @keyframes logShow{0%,100%{opacity:0;}30%,70%{opacity:1;}}
 
-.battle-controls{
+/* Bottom panel: roster ABOVE, controls BELOW — single stacked column */
+.battle-bottom-panel{
   position:absolute;
   bottom:0;left:0;right:0;
-  padding:8px calc(8px + var(--sal)) calc(8px + var(--sab)) calc(8px + var(--sar));
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:6px;
   z-index:50;
-  background:linear-gradient(180deg,transparent,rgba(0,0,0,0.85) 40%,rgba(0,0,0,0.95));
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,0.7) 30%,rgba(0,0,0,0.95));
   backdrop-filter:blur(6px);
   -webkit-backdrop-filter:blur(6px);
   border-top:1px solid rgba(255,215,0,0.3);
+  padding-bottom:var(--sab);
+  display:flex;flex-direction:column;
+}
+.battle-controls{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+  padding:6px calc(8px + var(--sal)) 6px calc(8px + var(--sar));
 }
 .battle-controls .battle-btn{
   padding:10px 4px;font-size:11px;letter-spacing:0;
@@ -1561,30 +1566,32 @@ img{-webkit-user-drag:none;}
   min-width:0;
 }
 @media (max-width:380px){
-  .battle-controls{padding:6px 8px calc(6px + var(--sab));gap:4px;}
-  .battle-controls .battle-btn{padding:9px 2px;font-size:10px;}
+  .battle-controls{padding:5px 6px;gap:4px;}
+  .battle-controls .battle-btn{padding:8px 2px;font-size:10px;}
 }
 @media (max-width:330px){
-  .battle-controls .battle-btn{padding:8px 1px;font-size:9px;letter-spacing:-0.5px;}
+  .battle-controls .battle-btn{padding:7px 1px;font-size:9px;letter-spacing:-0.5px;}
 }
 
 /* ===== TEAM ROSTER ===== */
 .team-roster{
-  position:absolute;left:8px;right:8px;
   display:flex;justify-content:center;gap:6px;
   z-index:6;pointer-events:none;
+  left:8px;right:8px;
 }
 .team-roster.top{
+  position:absolute;
   top:calc(8px + var(--sat));
 }
 .team-roster.bottom{
-  bottom:calc(75px + var(--sab));
+  position:static;  /* inside bottom panel, flow normally */
+  padding:6px 8px 0;
 }
 @media (max-width:380px){
-  .team-roster.bottom{bottom:calc(68px + var(--sab));}
   .team-roster.top{top:calc(4px + var(--sat));}
   .roster-slot{width:46px;}
   .roster-name{font-size:7px;}
+  .team-roster.bottom{padding:4px 6px 0;gap:4px;}
 }
 .roster-slot{
   width:54px;flex:0 0 auto;
@@ -1753,7 +1760,7 @@ img{-webkit-user-drag:none;}
   top:calc(85px + var(--sat));
 }
 .active-row.players{
-  bottom:calc(170px + var(--sab));
+  bottom:calc(155px + var(--sab));  /* above bottom panel (roster ~70 + controls ~60) */
   flex-direction:row-reverse;
 }
 .active-fighter{
@@ -1840,7 +1847,7 @@ img{-webkit-user-drag:none;}
 }
 
 @media (max-width:380px){
-  .active-row.players{bottom:calc(150px + var(--sab));}
+  .active-row.players{bottom:calc(140px + var(--sab));}
   .active-row.enemies{top:calc(70px + var(--sat));}
   .active-fighter{max-width:100px;}
   .af-portrait{width:80px;height:80px;}
@@ -1852,7 +1859,7 @@ img{-webkit-user-drag:none;}
   .active-fighter{max-width:84px;}
   .af-portrait{width:70px;height:70px;}
   .active-row{gap:3px;left:4px;right:4px;}
-  .active-row.players{bottom:calc(140px + var(--sab));}
+  .active-row.players{bottom:calc(125px + var(--sab));}
 }
 .battle-btn{
   background:linear-gradient(135deg,#ff6b35,#f7931e);
@@ -2691,14 +2698,16 @@ img{-webkit-user-drag:none;}
   <div class="team-roster top" id="enemy-roster"></div>
   <div class="active-row enemies" id="enemy-actives"></div>
   <div class="active-row players" id="player-actives"></div>
-  <div class="team-roster bottom" id="player-roster"></div>
   <div class="skill-effect" id="skill-effect"></div>
-  <div class="battle-controls" id="battle-controls">
-    <button class="battle-btn" onclick="playerAttack('normal')">⚔ 攻撃</button>
-    <button class="battle-btn skill" onclick="playerAttack('skill')" id="skill-btn">✨ スキル</button>
-    <button class="battle-btn ultimate" onclick="playerAttack('ultimate')" id="ult-btn" disabled>💥 必殺技</button>
-    <button class="battle-btn auto" onclick="toggleAutoBattle()" id="auto-btn">🤖 AUTO</button>
-    <button class="battle-btn flee" onclick="endBattle('flee')">🏳 撤退</button>
+  <div class="battle-bottom-panel">
+    <div class="team-roster bottom" id="player-roster"></div>
+    <div class="battle-controls" id="battle-controls">
+      <button class="battle-btn" onclick="playerAttack('normal')">⚔ 攻撃</button>
+      <button class="battle-btn skill" onclick="playerAttack('skill')" id="skill-btn">✨ スキル</button>
+      <button class="battle-btn ultimate" onclick="playerAttack('ultimate')" id="ult-btn" disabled>💥 必殺技</button>
+      <button class="battle-btn auto" onclick="toggleAutoBattle()" id="auto-btn">🤖 AUTO</button>
+      <button class="battle-btn flee" onclick="endBattle('flee')">🏳 撤退</button>
+    </div>
   </div>
 </div>
 
