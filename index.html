@@ -780,6 +780,16 @@ img{-webkit-user-drag:none;}
   background:#ff1e5a;color:#fff;font-size:8px;text-align:center;padding:1px;font-weight:900;
   border-top-left-radius:10px;border-top-right-radius:10px;
 }
+.bulk-picker-item .warn-tag{
+  position:absolute;bottom:0;left:0;right:0;z-index:10;
+  font-size:8px;text-align:center;padding:2px;font-weight:900;
+  border-bottom-left-radius:10px;border-bottom-right-radius:10px;
+}
+.bulk-picker-item .warn-tag.warning{background:linear-gradient(90deg,#ffa726,#c25e00);color:#000;}
+.bulk-picker-item .warn-tag.critical{background:linear-gradient(90deg,#ff1e5a,#7b0019);color:#fff;animation:claimPulse 1.5s ease-in-out infinite;}
+.bulk-picker-item.is-important{
+  box-shadow:0 0 8px rgba(255,30,90,0.4);
+}
 .bulk-picker-info{
   position:sticky;bottom:0;left:0;right:0;
   background:linear-gradient(0deg,rgba(0,0,0,0.95),rgba(0,0,0,0.8));
@@ -1604,6 +1614,115 @@ img{-webkit-user-drag:none;}
 }
 
 .battle-btn.switch{background:linear-gradient(135deg,#4ecdc4,#1e63c8);font-size:11px;padding:10px 14px;}
+
+/* ===== 3 ACTIVE FIGHTERS PER SIDE ===== */
+.active-row{
+  position:absolute;left:8px;right:8px;
+  display:flex;justify-content:space-around;align-items:center;
+  gap:6px;z-index:3;pointer-events:none;
+}
+.active-row.enemies{
+  top:calc(85px + var(--sat));
+}
+.active-row.players{
+  bottom:calc(160px + var(--sab));
+  flex-direction:row-reverse;
+}
+.active-fighter{
+  flex:1;max-width:130px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  position:relative;pointer-events:auto;
+}
+.active-fighter.dying{animation:fighterDie 0.6s forwards;}
+@keyframes fighterDie{
+  0%{opacity:1;transform:scale(1) rotate(0deg);}
+  100%{opacity:0;transform:scale(0.3) rotate(180deg);filter:grayscale(1);}
+}
+.active-fighter.entering{animation:fighterEnter 0.5s forwards;}
+@keyframes fighterEnter{
+  0%{opacity:0;transform:scale(0.4) translateY(40px);}
+  100%{opacity:1;transform:scale(1) translateY(0);}
+}
+.af-name{
+  font-size:10px;font-weight:900;color:#fff;
+  text-shadow:0 1px 3px #000,0 0 4px rgba(255,215,0,0.5);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;letter-spacing:0.5px;
+}
+.af-name .o{color:#ffd700;font-size:9px;margin-right:3px;}
+.af-hp{
+  width:100%;height:8px;background:#0a0a18;
+  border:1.5px solid rgba(255,255,255,0.5);border-radius:5px;
+  overflow:hidden;box-shadow:0 0 6px rgba(0,0,0,0.6);
+}
+.af-hp-fill{
+  height:100%;
+  background:linear-gradient(90deg,#0f0,#0c0);
+  transition:width 0.4s;
+}
+.af-hp-text{font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000;}
+.af-portrait{
+  width:100px;height:100px;
+  border-radius:10px;
+  overflow:hidden;
+  border:2px solid #ffffff66;
+  background:radial-gradient(ellipse at 50% 30%,rgba(255,215,0,0.15),#000 70%);
+  position:relative;
+  box-shadow:0 4px 12px rgba(0,0,0,0.7);
+}
+.af-portrait img{
+  width:100%;height:100%;object-fit:cover;object-position:center top;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,0.9));
+}
+.af-portrait .emoji{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;height:100%;font-size:64px;
+}
+.active-fighter.is-enemy .af-portrait img{transform:scaleX(-1);}
+.active-fighter.boss{max-width:200px;}
+.active-fighter.boss .af-portrait{width:160px;height:160px;border-color:#ff1e5a;box-shadow:0 0 20px #ff1e5a,0 0 40px rgba(255,30,90,0.5);}
+.active-fighter.boss .af-name{font-size:13px;color:#ff5e8a;}
+.active-fighter.attacking-l{animation:atkLeft 0.4s;}
+.active-fighter.attacking-r{animation:atkRight 0.4s;}
+@keyframes atkLeft{0%{transform:translateX(0);}50%{transform:translateX(20px) scale(1.1);}100%{transform:translateX(0);}}
+@keyframes atkRight{0%{transform:translateX(0);}50%{transform:translateX(-20px) scale(1.1);}100%{transform:translateX(0);}}
+.active-fighter.hurt .af-portrait{animation:portraitHurt 0.3s;}
+@keyframes portraitHurt{
+  0%,100%{transform:translateX(0);filter:brightness(1);}
+  25%{transform:translateX(-4px);filter:brightness(2) hue-rotate(-30deg);}
+  75%{transform:translateX(4px);filter:brightness(2) hue-rotate(-30deg);}
+}
+/* Color by rarity border */
+.active-fighter.r-N .af-portrait{border-color:#888;}
+.active-fighter.r-R .af-portrait{border-color:#5dabff;}
+.active-fighter.r-SR .af-portrait{border-color:#b964ff;}
+.active-fighter.r-SSR .af-portrait{border-color:#ffd700;}
+.active-fighter.r-UR .af-portrait{border-color:#ff5e8a;box-shadow:0 0 12px #ff6bff;}
+.active-fighter.r-LR .af-portrait{border-color:#fff;box-shadow:0 0 16px #ffd700;}
+.active-fighter.mythic .af-portrait{
+  border:2px solid;
+  border-image:conic-gradient(from 0deg,#ff00ff,#ffd700,#00d4ff,#fff,#ff00ff) 1;
+  box-shadow:0 0 20px #ff00ff,0 0 36px #ffd700;
+}
+.active-fighter.dead{opacity:0.3;filter:grayscale(1);}
+.active-fighter.dead .af-portrait::after{
+  content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:48px;color:#f44;text-shadow:0 0 6px #000;font-weight:900;
+}
+
+@media (max-width:380px){
+  .active-row.players{bottom:calc(150px + var(--sab));}
+  .active-fighter{max-width:100px;}
+  .af-portrait{width:80px;height:80px;}
+  .af-portrait .emoji{font-size:48px;}
+  .af-name{font-size:9px;}
+  .active-fighter.boss .af-portrait{width:130px;height:130px;}
+}
+@media (max-width:330px){
+  .active-fighter{max-width:84px;}
+  .af-portrait{width:70px;height:70px;}
+  .active-row{gap:3px;left:4px;right:4px;}
+}
 .battle-btn{
   background:linear-gradient(135deg,#ff6b35,#f7931e);
   padding:12px 18px;border-radius:10px;
@@ -2259,6 +2378,11 @@ img{-webkit-user-drag:none;}
   <div class="market-list" id="market-list"></div>
 </div>
 
+<!-- PVP -->
+<div class="screen" id="screen-pvp">
+  <div id="pvp-content"></div>
+</div>
+
 <!-- MISSION -->
 <div class="screen" id="screen-mission">
   <div class="dungeon-tabs">
@@ -2274,10 +2398,11 @@ img{-webkit-user-drag:none;}
 <div id="nav">
   <button class="nav-btn active" data-screen="home" onclick="nav('home')"><span class="ico">🏠</span>HOME</button>
   <button class="nav-btn" data-screen="gacha" onclick="nav('gacha')"><span class="ico">🎰</span>GACHA</button>
-  <button class="nav-btn" data-screen="box" onclick="nav('box')"><span class="ico">📦</span>BOX</button>
   <button class="nav-btn" data-screen="quest" onclick="nav('quest')"><span class="ico">🗺️</span>QUEST</button>
+  <button class="nav-btn" data-screen="pvp" onclick="nav('pvp')"><span class="ico">⚔</span>PVP</button>
   <button class="nav-btn" data-screen="mission" onclick="nav('mission')"><span class="ico">🎯</span>MISSION</button>
   <button class="nav-btn" data-screen="evolve" onclick="nav('evolve')"><span class="ico">✨</span>EVOLVE</button>
+  <button class="nav-btn" data-screen="box" onclick="nav('box')"><span class="ico">📦</span>BOX</button>
   <button class="nav-btn" data-screen="market" onclick="nav('market')"><span class="ico">🏪</span>MARKET</button>
 </div>
 
@@ -2296,32 +2421,13 @@ img{-webkit-user-drag:none;}
 <div id="battle-overlay">
   <div class="battle-bg" id="battle-bg"></div>
   <div class="team-roster top" id="enemy-roster"></div>
-  <div class="battle-top">
-    <div class="combatant right" id="enemy-side">
-      <div class="battle-name"><span class="o">OVR <span id="e-ovr">100</span></span><span id="e-name">敵</span></div>
-      <div style="width:100%;display:flex;align-items:center;gap:6px;">
-        <div class="hp-bar" style="flex:1;"><div class="hp-fill" id="e-hp"></div></div>
-        <div class="hp-text" id="e-hp-text">100/100</div>
-      </div>
-      <div class="fighter-art enemy" id="e-art">👹</div>
-    </div>
-  </div>
-  <div class="battle-bottom">
-    <div class="combatant left" id="player-side">
-      <div class="fighter-art" id="p-art">🦊</div>
-      <div style="width:100%;display:flex;align-items:center;gap:6px;">
-        <div class="hp-text" id="p-hp-text">100/100</div>
-        <div class="hp-bar" style="flex:1;"><div class="hp-fill" id="p-hp"></div></div>
-      </div>
-      <div class="battle-name"><span id="p-name">あなた</span><span class="o" style="margin-left:5px;margin-right:0;">OVR <span id="p-ovr">100</span></span></div>
-    </div>
-  </div>
+  <div class="active-row enemies" id="enemy-actives"></div>
+  <div class="active-row players" id="player-actives"></div>
   <div class="team-roster bottom" id="player-roster"></div>
   <div class="skill-effect" id="skill-effect"></div>
   <div class="battle-controls" id="battle-controls">
-    <button class="battle-btn" onclick="playerAttack('normal')">⚔ 攻撃</button>
-    <button class="battle-btn skill" onclick="playerAttack('skill')" id="skill-btn">✨ スキル</button>
-    <button class="battle-btn switch" onclick="openSwitchPicker()" id="switch-btn">🔄 交代</button>
+    <button class="battle-btn" onclick="playerAttack('normal')">⚔ 全員攻撃</button>
+    <button class="battle-btn skill" onclick="playerAttack('skill')" id="skill-btn">✨ スキル発動</button>
     <button class="battle-btn flee" onclick="endBattle('flee')">🏳 撤退</button>
   </div>
 </div>
@@ -3221,6 +3327,7 @@ function nav(scr){
   if(scr==='evolve')renderEvolve();
   if(scr==='market')renderMarket();
   if(scr==='mission')renderMission();
+  if(scr==='pvp')renderPvP();
 }
 
 const TYPE_ICONS = {
@@ -3949,10 +4056,12 @@ function renderBulkPicker(m, candidates, picked){
   const gridHtml = candidates.map(x=>{
     const idx = picked.indexOf(x.uid);
     const isPicked = idx >= 0;
+    const imp = getMonsterImportance(x);
     return `
-      <div class="bulk-picker-item ${isPicked?'selected':''}" onclick="togglePickMaterial(${m.uid},${x.uid})">
+      <div class="bulk-picker-item ${isPicked?'selected':''} ${imp?'is-important':''}" onclick="togglePickMaterial(${m.uid},${x.uid})">
         ${cardHtml(x,'mini').replace(/onclick="[^"]+"/,'')}
         ${x.spId===m.spId?'<div class="same-tag">同種 +30%</div>':''}
+        ${imp ? `<div class="warn-tag ${imp}">${imp==='critical'?'⚠ 高レア':'⚠ 重要'}</div>` : ''}
         ${isPicked?`<div class="pick-num">${idx+1}</div>`:''}
       </div>
     `;
@@ -3996,17 +4105,44 @@ function renderBulkPicker(m, candidates, picked){
 function togglePickMaterial(targetUid, candidateUid){
   let picked = window._bulkPicked || [];
   const idx = picked.indexOf(candidateUid);
-  if(idx >= 0){
-    picked.splice(idx, 1);
-    SFX.click();
-  } else {
-    if(picked.length >= 5){ toast('5枠まで','error'); return; }
-    picked.push(candidateUid);
-    SFX.coinGet();
-  }
-  // Save current scroll BEFORE re-render
+  // Save scroll
   const gridEl = document.getElementById('bulk-grid');
   if(gridEl) window._bulkScroll = gridEl.scrollTop;
+
+  if(idx >= 0){
+    // Removing — no confirmation
+    picked.splice(idx, 1);
+    SFX.click();
+    _refreshBulkPicker(targetUid, picked);
+    return;
+  }
+  if(picked.length >= 5){ toast('5枠まで','error'); return; }
+
+  // ADDING — check if this candidate is important
+  const candidate = state.monsters.find(x=>x.uid===candidateUid);
+  const warn = importantWarnText(candidate, 'evo-material');
+  if(warn){
+    confirmDanger({
+      title: '進化素材に使いますか？',
+      monster: candidate,
+      severity: warn.severity,
+      message: `<b>${warn.reasons}</b> のモンスターを進化素材にしようとしています。<br>進化を実行すると <b style="color:#ff5e8a;">完全に消滅</b> します。<br>戦力／資産として残しておく方が良いかも。`,
+      confirmLabel: '⚠ それでも素材にする',
+      cancelLabel: 'やめる',
+    }, ()=>{
+      picked.push(candidateUid);
+      SFX.coinGet();
+      _refreshBulkPicker(targetUid, picked);
+    });
+    return;
+  }
+
+  picked.push(candidateUid);
+  SFX.coinGet();
+  _refreshBulkPicker(targetUid, picked);
+}
+
+function _refreshBulkPicker(targetUid, picked){
   const m = state.monsters.find(x=>x.uid===targetUid);
   const candidates = state.monsters.filter(x=>x.uid!==m.uid && !x.listed)
     .sort((a,b)=>{
@@ -4029,7 +4165,11 @@ function autoPickMaterials(targetUid){
   const m = state.monsters.find(x=>x.uid===targetUid);
   if(!m) return;
   // Recommended pick: maximize gauge with minimum loss to strong cards
-  const candidates = state.monsters.filter(x=>x.uid!==m.uid && !x.listed && x.evo===0);
+  // SAFETY: exclude important (SSR+, evo>=3, mythic, LR) monsters from auto-pick
+  const candidates = state.monsters.filter(x=>
+    x.uid!==m.uid && !x.listed && x.evo===0 &&
+    !getMonsterImportance(x)  // skip important cards
+  );
   const scored = candidates.map(x=>{
     let val = 15;
     if(x.spId===m.spId) val = 30;
@@ -4057,12 +4197,13 @@ function autoPickMaterials(targetUid){
 function autoPickLowOvr(targetUid){
   const m = state.monsters.find(x=>x.uid===targetUid);
   if(!m) return;
-  // Filter to low-OVR pool only (50-99), exclude evolved/listed
+  // Filter to low-OVR pool only (50-99), exclude evolved/listed/important
   const pool = state.monsters.filter(x =>
     x.uid !== m.uid &&
     !x.listed &&
     x.evo === 0 &&
-    x.ovr >= 50 && x.ovr <= 99
+    x.ovr >= 50 && x.ovr <= 99 &&
+    !getMonsterImportance(x)
   );
   if(pool.length === 0){
     toast('OVR 50-99 の素材がありません','error');
@@ -4118,6 +4259,31 @@ function executeEvolve(){
   const targetEvo = m.evo + 1;
   const stoneCost = targetEvo * 2;
   if(state.mat < stoneCost){ toast('進化石が足りません','error'); return; }
+
+  // === FINAL CHECK: any important material? ===
+  const importantMats = (state.evolveMaterials||[]).map(uid =>
+    state.monsters.find(x => x.uid === uid)
+  ).filter(mat => mat && getMonsterImportance(mat));
+  if(importantMats.length > 0){
+    const matNames = importantMats.map(mat => {
+      const imp = getMonsterImportance(mat);
+      return `<b style="color:${imp==='critical'?'#ff1e5a':'#ffa726'};">${mat.name} OVR${mat.ovr}${mat.evo>0?` +${mat.evo}`:''}</b>`;
+    }).join('<br>');
+    const sev = importantMats.some(mat=>getMonsterImportance(mat)==='critical') ? 'critical' : 'warning';
+    confirmDanger({
+      title: '高レア素材を消費します',
+      monster: m,
+      severity: sev,
+      message: `以下の <b style="color:${sev==='critical'?'#ff1e5a':'#ffa726'};">重要モンスター</b> を進化素材として消費します：<br><br>${matNames}<br><br>進化結果に関わらず素材は <b style="color:#ff5e8a;">完全に消滅</b> します。<br>本当に実行しますか？`,
+      confirmLabel: '⚠ それでも進化実行',
+      cancelLabel: '素材を見直す',
+    }, ()=> _doExecuteEvolve(m, targetEvo, stoneCost));
+    return;
+  }
+  _doExecuteEvolve(m, targetEvo, stoneCost);
+}
+
+function _doExecuteEvolve(m, targetEvo, stoneCost){
 
   // calc rate
   const rates = {1:1.00,2:0.95,3:0.85,4:0.65,5:0.50,6:0.25,7:0.12,8:0.07,9:0.04,10:0.02};
@@ -4284,11 +4450,11 @@ function startLimitedBattle(ldId, si){
   if(!ld) return;
   stopBGM();
   const stage = ld.stages[si];
-  const teamSize = stage.boss ? 5 : 3;
-  const pTeam = buildPlayerTeam(teamSize);
+  const pTeam = buildPlayerTeam(5);
   if(pTeam.length === 0){ toast('モンスターがいません','error'); return; }
   const eTeam = buildEnemyTeam(stage, !!stage.boss, -1);
-  // Apply bonus multiplier on drop
+  const eActives = stage.boss ? [0] : Array.from({length: Math.min(3, eTeam.length)}, (_,i)=>i);
+  const pActives = Array.from({length: Math.min(3, pTeam.length)}, (_,i)=>i);
   const bonusDrop = {};
   if(stage.drop){
     Object.keys(stage.drop).forEach(k=>{ bonusDrop[k] = Math.round(stage.drop[k] * (ld.bonus||1)); });
@@ -4296,11 +4462,8 @@ function startLimitedBattle(ldId, si){
   battleState = {
     di: -1, si, drop: bonusDrop,
     boss: stage.boss, isLimited: true, ldName: ld.name,
-    pTeam: pTeam, eTeam: eTeam,
-    pActive: 0, eActive: 0,
-    get p(){ return this.pTeam[this.pActive]; },
-    get e(){ return this.eTeam[this.eActive]; },
-    log:[], turn:'p',
+    pTeam, eTeam, pActives, eActives,
+    log:[],
   };
   document.getElementById('battle-bg').className = 'battle-bg ' + ld.bgClass;
   renderBattle();
@@ -4425,21 +4588,20 @@ function buildEnemyTeam(stage, isBoss, di){
 function startBattle(di,si){
   const d = DUNGEONS[di];
   const stage = d.stages[si];
-  const teamSize = stage.boss ? 5 : 3;
-  const pTeam = buildPlayerTeam(teamSize);
+  const pTeam = buildPlayerTeam(5); // always carry 5 (3 active + 2 bench)
   if(pTeam.length === 0){ toast('モンスターがいません。ガチャを引こう','error'); return; }
   stopBGM();
 
   const eTeam = buildEnemyTeam(stage, !!stage.boss, di);
+  const eActives = stage.boss ? [0] : Array.from({length: Math.min(3, eTeam.length)}, (_,i)=>i);
+  const pActives = Array.from({length: Math.min(3, pTeam.length)}, (_,i)=>i);
 
   battleState = {
     di, si, drop: stage.drop || {},
     boss: stage.boss,
-    pTeam: pTeam, eTeam: eTeam,
-    pActive: 0, eActive: 0,
-    get p(){ return this.pTeam[this.pActive]; },
-    get e(){ return this.eTeam[this.eActive]; },
-    log:[], turn:'p',
+    pTeam, eTeam,
+    pActives, eActives,
+    log:[],
   };
 
   document.getElementById('battle-bg').className = 'battle-bg ' + d.bgClass;
@@ -4454,37 +4616,41 @@ function startBattle(di,si){
 }
 
 function renderBattle(){
-  const {p,e} = battleState;
-  if(!p || !e) return;
-  document.getElementById('p-name').textContent = p.name;
-  document.getElementById('p-ovr').textContent = p.ovr;
-  const pArt = document.getElementById('p-art');
-  if(p.img){ pArt.innerHTML = `<img src="${p.img}" alt="${p.name}">`; }
-  else { pArt.textContent = p.art; }
-  document.getElementById('p-hp').style.width = (p.hp/p.maxHp*100)+'%';
-  document.getElementById('p-hp-text').textContent = `${Math.max(0,Math.round(p.hp))}/${p.maxHp}`;
-  document.getElementById('e-name').textContent = e.name;
-  document.getElementById('e-ovr').textContent = e.ovr;
-  const eArt = document.getElementById('e-art');
-  if(e.img){ eArt.innerHTML = `<img src="${e.img}" alt="${e.name}">`; }
-  else { eArt.textContent = e.art; }
-  document.getElementById('e-hp').style.width = (e.hp/e.maxHp*100)+'%';
-  document.getElementById('e-hp-text').textContent = `${Math.max(0,Math.round(e.hp))}/${e.maxHp}`;
-  // Color shift
-  const pct = p.hp/p.maxHp;
-  document.getElementById('p-hp').style.background = pct>0.5?'linear-gradient(90deg,#0f0,#0c0)':pct>0.25?'linear-gradient(90deg,#ff0,#fa0)':'linear-gradient(90deg,#f00,#900)';
-  const ept = e.hp/e.maxHp;
-  document.getElementById('e-hp').style.background = ept>0.5?'linear-gradient(90deg,#0f0,#0c0)':ept>0.25?'linear-gradient(90deg,#ff0,#fa0)':'linear-gradient(90deg,#f00,#900)';
-  // Render team rosters
-  renderRoster('player-roster', battleState.pTeam, battleState.pActive, false);
-  renderRoster('enemy-roster', battleState.eTeam, battleState.eActive, true);
+  if(!battleState) return;
+  renderActiveRow('player-actives', battleState.pTeam, battleState.pActives, false);
+  renderActiveRow('enemy-actives', battleState.eTeam, battleState.eActives, true);
+  renderRoster('player-roster', battleState.pTeam, battleState.pActives, false);
+  renderRoster('enemy-roster', battleState.eTeam, battleState.eActives, true);
 }
 
-function renderRoster(elId, team, activeIdx, isEnemy){
+function renderActiveRow(elId, team, actives, isEnemy){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.innerHTML = actives.map((idx,slot) => {
+    const m = team[idx];
+    if(!m) return '';
+    const hpPct = m.alive ? (m.hp / m.maxHp * 100) : 0;
+    const hpColor = hpPct>50?'linear-gradient(90deg,#0f0,#0c0)':hpPct>25?'linear-gradient(90deg,#ff0,#fa0)':'linear-gradient(90deg,#f00,#900)';
+    const portrait = m.img
+      ? `<img src="${m.img}" alt="${m.name}">`
+      : `<div class="emoji">${m.art||'?'}</div>`;
+    const isBoss = m.isBossUnit;
+    return `
+      <div class="active-fighter ${isEnemy?'is-enemy':''} r-${m.rarity||'N'} ${m.mythic?'mythic':''} ${isBoss?'boss':''} ${!m.alive?'dead':''}" data-slot="${slot}" id="af-${isEnemy?'e':'p'}-${slot}">
+        <div class="af-name"><span class="o">${m.ovr}</span>${m.name}</div>
+        <div class="af-hp"><div class="af-hp-fill" style="width:${hpPct}%;background:${hpColor};"></div></div>
+        <div class="af-portrait">${portrait}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRoster(elId, team, activeIdxs, isEnemy){
   const el = document.getElementById(elId);
   if(!el || !team) return;
+  const actives = Array.isArray(activeIdxs) ? activeIdxs : [activeIdxs];
   el.innerHTML = team.map((m, i) => {
-    const isActive = i === activeIdx && m.alive;
+    const isActive = actives.includes(i) && m.alive;
     const isDead = !m.alive;
     const hpPct = m.alive ? (m.hp / m.maxHp * 100) : 0;
     const hpColor = hpPct>50 ? 'linear-gradient(90deg,#0f0,#0c0)' : hpPct>25 ? 'linear-gradient(90deg,#ff0,#fa0)' : 'linear-gradient(90deg,#f00,#900)';
@@ -4561,23 +4727,204 @@ function calcDamage(attacker, defender, type){
 }
 
 let actionLock = false;
+
+// === 3v3 SIMULTANEOUS ACTION SYSTEM ===
+// Returns indexes of alive enemies/players in active list
+function aliveActives(team, actives){
+  return actives.filter(i => team[i] && team[i].alive);
+}
+function pickRandomTarget(team, actives){
+  const alive = aliveActives(team, actives);
+  if(alive.length === 0) return -1;
+  return alive[Math.floor(Math.random()*alive.length)];
+}
+function refillActives(team, actives, max){
+  // Fill empty/dead active slots from bench
+  for(let s=0; s<max; s++){
+    const cur = actives[s];
+    if(cur === undefined || !team[cur] || !team[cur].alive){
+      // Find next alive bench monster not already active
+      const used = new Set(actives);
+      for(let i=0; i<team.length; i++){
+        if(team[i].alive && !used.has(i)){
+          actives[s] = i;
+          return i; // returns the newly added one
+        }
+      }
+      // No alive monsters left to fill — remove slot
+      if(cur !== undefined && team[cur] && !team[cur].alive){
+        actives.splice(s, 1);
+        s--;
+      }
+    }
+  }
+  return -1;
+}
+
+// === NEW: Each turn = all active monsters act simultaneously ===
 function playerAttack(type){
+  if(actionLock || !battleState) return;
+  const {pTeam, eTeam, pActives, eActives, boss} = battleState;
+  if(aliveActives(pTeam, pActives).length === 0){ endBattle('lose'); return; }
+  if(aliveActives(eTeam, eActives).length === 0){ endBattle('win'); return; }
+  actionLock = true;
+
+  // First, one player skill cut-in if type==='skill'
+  if(type === 'skill'){
+    const skillAttacker = pTeam[aliveActives(pTeam, pActives)[0]];
+    SFX.skill();
+    if(skillAttacker) showSkillEffect(skillAttacker.art, skillAttacker, false);
+  }
+
+  // Phase 1: 3 player monsters each attack (one at a time with stagger)
+  const playerActs = aliveActives(pTeam, pActives);
+  let actionDelay = type === 'skill' ? 350 : 50;
+  playerActs.forEach((pIdx, i) => {
+    setTimeout(() => {
+      if(!battleState) return;
+      const attacker = pTeam[pIdx];
+      if(!attacker || !attacker.alive) return;
+      // Pick target — alive enemy
+      const targetIdx = pickRandomTarget(eTeam, eActives);
+      if(targetIdx < 0) return;
+      const target = eTeam[targetIdx];
+      const result = calcDamage(attacker, target, type);
+
+      // Animate this fighter
+      const slot = pActives.indexOf(pIdx);
+      const afEl = document.getElementById(`af-p-${slot}`);
+      if(afEl){ afEl.classList.add('attacking-l'); setTimeout(()=>afEl.classList.remove('attacking-l'), 400); }
+
+      if(!result.miss){
+        target.hp -= result.dmg;
+        if(target.hp <= 0){ target.hp = 0; target.alive = false; }
+        SFX[result.crit?'crit':'hit']();
+        const targetSlot = eActives.indexOf(targetIdx);
+        const targetEl = document.getElementById(`af-e-${targetSlot}`);
+        if(targetEl){
+          targetEl.classList.add('hurt');
+          setTimeout(()=>targetEl.classList.remove('hurt'), 350);
+          // Damage popup
+          spawnDamagePopup(targetEl, result.dmg, result.crit);
+        }
+      } else {
+        const targetSlot = eActives.indexOf(targetIdx);
+        const targetEl = document.getElementById(`af-e-${targetSlot}`);
+        if(targetEl) spawnDamagePopup(targetEl, 'MISS', false, true);
+      }
+      if(result.msg) showLog(result.msg);
+      // Heal from lifesteal
+      if(attacker._heal){
+        const h = Math.round(result.dmg * attacker._heal);
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + h);
+        delete attacker._heal;
+      }
+      renderBattle();
+    }, actionDelay + i * 350);
+  });
+
+  // After all player actions, check if enemies dead → win
+  const totalPlayerTime = actionDelay + playerActs.length * 350 + 200;
+  setTimeout(() => {
+    if(!battleState) return;
+    refillActives(eTeam, eActives, boss ? 1 : 3);
+    refillActives(pTeam, pActives, 3);
+    renderBattle();
+    if(aliveActives(eTeam, eActives).length === 0){
+      endBattle('win'); actionLock = false; return;
+    }
+    // Phase 2: enemy turn — all alive active enemies attack
+    // Boss: attacks 2-3 times (one per player)
+    enemyMultiTurn();
+  }, totalPlayerTime);
+}
+
+function enemyMultiTurn(){
+  if(!battleState) return;
+  const {pTeam, eTeam, pActives, eActives, boss} = battleState;
+  const enemyActs = aliveActives(eTeam, eActives);
+  if(enemyActs.length === 0){
+    actionLock = false;
+    return;
+  }
+  // Boss attacks multiple times (3 times to balance vs 3 players)
+  const attacksPerEnemy = boss ? 3 : 1;
+  const totalAttacks = [];
+  enemyActs.forEach(eIdx => {
+    for(let i=0; i<attacksPerEnemy; i++) totalAttacks.push(eIdx);
+  });
+
+  let delay = 0;
+  totalAttacks.forEach((eIdx, i) => {
+    setTimeout(() => {
+      if(!battleState) return;
+      const attacker = eTeam[eIdx];
+      if(!attacker || !attacker.alive) return;
+      const targetIdx = pickRandomTarget(pTeam, pActives);
+      if(targetIdx < 0) return;
+      const target = pTeam[targetIdx];
+      const useSkill = (attacker.skills||[]).length && Math.random() < 0.35;
+      if(useSkill && i === 0){ showSkillEffect(attacker.art, attacker, true); }
+      const result = calcDamage(attacker, target, useSkill ? 'skill' : 'normal');
+
+      const slot = eActives.indexOf(eIdx);
+      const afEl = document.getElementById(`af-e-${slot}`);
+      if(afEl){ afEl.classList.add('attacking-r'); setTimeout(()=>afEl.classList.remove('attacking-r'), 400); }
+
+      if(!result.miss){
+        target.hp -= result.dmg;
+        if(target.hp <= 0){ target.hp = 0; target.alive = false; }
+        SFX[result.crit?'crit':'hit']();
+        const targetSlot = pActives.indexOf(targetIdx);
+        const targetEl = document.getElementById(`af-p-${targetSlot}`);
+        if(targetEl){
+          targetEl.classList.add('hurt');
+          setTimeout(()=>targetEl.classList.remove('hurt'), 350);
+          spawnDamagePopup(targetEl, result.dmg, result.crit);
+        }
+      } else {
+        const targetSlot = pActives.indexOf(targetIdx);
+        const targetEl = document.getElementById(`af-p-${targetSlot}`);
+        if(targetEl) spawnDamagePopup(targetEl, 'MISS', false, true);
+      }
+      if(result.msg) showLog(result.msg);
+      renderBattle();
+    }, delay);
+    delay += boss ? 500 : 350;
+  });
+
+  setTimeout(() => {
+    if(!battleState) return;
+    refillActives(pTeam, pActives, 3);
+    refillActives(eTeam, eActives, boss ? 1 : 3);
+    renderBattle();
+    if(aliveActives(pTeam, pActives).length === 0){
+      endBattle('lose'); actionLock = false; return;
+    }
+    actionLock = false;
+  }, delay + 300);
+}
+
+function spawnDamagePopup(targetEl, val, isCrit, isMiss){
+  const rect = targetEl.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'dmg-popup' + (isCrit?' crit':'') + (isMiss?' miss':'');
+  pop.textContent = isMiss ? 'MISS' : '-' + val;
+  pop.style.left = (rect.left + rect.width/2 - 20) + 'px';
+  pop.style.top = (rect.top + rect.height/3) + 'px';
+  document.body.appendChild(pop);
+  setTimeout(()=>pop.remove(), 1000);
+}
+
+// === STUB: old single-attack code below is no longer used (kept for compat) ===
+function _legacyPlayerAttack(type){
   if(actionLock || !battleState) return;
   actionLock = true;
   const {p,e} = battleState;
   const result = calcDamage(p,e,type);
-
-  // Animate
   const pArt = document.getElementById('p-art');
-  pArt.classList.add('attacking');
-  setTimeout(()=>pArt.classList.remove('attacking'),400);
-
-  if(type==='skill'){
-    SFX.skill();
-    showSkillEffect(p.art, p, false);
-  } else {
-    SFX.attack();
-  }
+  if(pArt){ pArt.classList.add('attacking'); setTimeout(()=>pArt.classList.remove('attacking'),400); }
+  if(type==='skill'){ SFX.skill(); showSkillEffect(p.art, p, false); } else { SFX.attack(); }
 
   setTimeout(()=>{
     if(result.miss){
@@ -4904,6 +5251,13 @@ function endBattle(result){
     if(battleState.isLimited){
       rewardText += `<br>🌟 期間限定ダンジョン「${battleState.ldName}」クリア！`;
     }
+    if(battleState.isPvP){
+      state.pvpWins = (state.pvpWins||0) + 1;
+      if(!state.pvpHistory) state.pvpHistory = [];
+      state.pvpHistory.push({oppName: battleState.oppName, result:'win', at: Date.now()});
+      if(state.pvpHistory.length > 50) state.pvpHistory = state.pvpHistory.slice(-50);
+      rewardText += `<br>🏆 PvP勝利！「${battleState.oppName}」を撃破`;
+    }
 
     const overlay = document.createElement('div');
     overlay.className = 'victory-overlay';
@@ -4917,6 +5271,13 @@ function endBattle(result){
     overlay.dataset.cleanup = '1';
   } else if(result==='lose'){
     SFX.defeat();
+    if(battleState.isPvP){
+      state.pvpLosses = (state.pvpLosses||0) + 1;
+      if(!state.pvpHistory) state.pvpHistory = [];
+      state.pvpHistory.push({oppName: battleState.oppName, result:'lose', at: Date.now()});
+      if(state.pvpHistory.length > 50) state.pvpHistory = state.pvpHistory.slice(-50);
+      save();
+    }
     const overlay = document.createElement('div');
     overlay.className = 'defeat-overlay';
     overlay.innerHTML = `
@@ -5158,9 +5519,26 @@ function confirmSell(uid){
   if(!m){return;}
   const price = parseInt(document.getElementById('sell-price').value)||0;
   if(price<10){ toast('価格は10以上','error'); return; }
-  // Simulate instant-sell with small delay
+  // === IMPORTANT MONSTER GUARD ===
+  const warn = importantWarnText(m, 'sell');
+  if(warn){
+    confirmDanger({
+      title: '本当に出品しますか？',
+      monster: m,
+      severity: warn.severity,
+      message: `<b>${warn.reasons}</b> の貴重なモンスターを出品しようとしています。<br>出品して売れたら戻ってきません。<br>進化やバトル用に残しておく方が良いかも？<br><br>出品価格: <b style="color:#ffd700;">🪙 ${price.toLocaleString()}</b>`,
+      confirmLabel: '⚠ それでも出品する',
+      cancelLabel: 'やめる',
+    }, ()=> _doSell(uid, price));
+    return;
+  }
+  _doSell(uid, price);
+}
+
+function _doSell(uid, price){
+  const m = state.monsters.find(x=>x.uid===uid);
+  if(!m){return;}
   state.monsters = state.monsters.filter(x=>x.uid!==uid);
-  // 70% chance instant sell at 90% price (simulated demand)
   const sellPrice = Math.round(price * (Math.random()<0.7?0.92:0.7));
   state.coin += sellPrice;
   closeModal();
@@ -5470,6 +5848,80 @@ function onMission(type, val){
   return '';
 }
 
+// ---------- IMPORTANT MONSTER CHECK & CONFIRM DIALOG ----------
+// Returns severity: 'critical' (red, hard confirm), 'warning' (yellow), or null (safe)
+function getMonsterImportance(m){
+  if(!m) return null;
+  if(m.mythic || m.ovr === 136) return 'critical';
+  if(m.rarity === 'LR' || m.ovr >= 130) return 'critical';
+  if(m.evo >= 5) return 'critical';
+  if(m.rarity === 'UR' || m.ovr >= 120) return 'warning';
+  if(m.evo >= 3) return 'warning';
+  if(m.rarity === 'SSR' || m.ovr >= 110) return 'warning';
+  return null;
+}
+
+function importantWarnText(m, action){
+  const imp = getMonsterImportance(m);
+  if(!imp) return null;
+  const reasons = [];
+  if(m.mythic || m.ovr === 136) reasons.push('神話級 OVR136');
+  else if(m.rarity === 'LR' || m.ovr >= 130) reasons.push('伝説 LR');
+  else if(m.rarity === 'UR' || m.ovr >= 120) reasons.push('シークレット UR');
+  else if(m.rarity === 'SSR' || m.ovr >= 110) reasons.push('ウルトラ SSR');
+  if(m.evo >= 5) reasons.push(`${m.evo}進化済`);
+  else if(m.evo >= 3) reasons.push(`${m.evo}進化済`);
+  return { severity: imp, reasons: reasons.join(' / '), action };
+}
+
+// Generic confirm dialog with monster preview and double-tap requirement for critical
+function confirmDanger(opts, onConfirm){
+  // opts: { title, monster, severity, message, confirmLabel, cancelLabel }
+  const c = document.getElementById('modal-content');
+  const sev = opts.severity || 'warning';
+  const isCritical = sev === 'critical';
+  const accentColor = isCritical ? '#ff1e5a' : '#ffa726';
+  const bgGradient = isCritical
+    ? 'linear-gradient(135deg,#3a0010,#1a0000)'
+    : 'linear-gradient(135deg,#3a2400,#1a1000)';
+  const portrait = opts.monster
+    ? `<div style="margin:0 auto 12px;width:130px;">${cardHtml(opts.monster,'mini').replace(/onclick="[^"]+"/,'')}</div>`
+    : '';
+  c.innerHTML = `
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <div style="background:${bgGradient};border:2px solid ${accentColor};border-radius:14px;padding:14px;margin:-6px -6px 12px;">
+      <div style="text-align:center;font-size:24px;line-height:1;margin-bottom:6px;">${isCritical?'⚠ 警告 ⚠':'⚠ 確認'}</div>
+      <div style="text-align:center;font-size:14px;font-weight:900;color:${accentColor};letter-spacing:2px;">${opts.title || '本当に実行しますか？'}</div>
+    </div>
+    ${portrait}
+    ${opts.monster ? `
+      <div style="background:rgba(0,0,0,0.4);border-left:3px solid ${accentColor};padding:8px 10px;border-radius:6px;margin-bottom:10px;font-size:11px;line-height:1.6;">
+        <div style="color:${accentColor};font-weight:900;margin-bottom:3px;">${opts.monster.name} <span style="color:#ffd700;">OVR${opts.monster.ovr}${opts.monster.evo>0?` +${opts.monster.evo}`:''}</span></div>
+        <div style="opacity:0.85;">このモンスターは <b style="color:${accentColor};">重要</b> です</div>
+      </div>
+    ` : ''}
+    <div style="font-size:12px;line-height:1.7;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;margin-bottom:14px;">${opts.message || ''}</div>
+    ${isCritical ? `
+      <div style="background:rgba(255,30,90,0.15);border:1px dashed ${accentColor};border-radius:8px;padding:8px;margin-bottom:10px;text-align:center;font-size:10px;color:${accentColor};font-weight:900;">
+        ⚠ この操作は元に戻せません ⚠
+      </div>
+    ` : ''}
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">${opts.cancelLabel || 'キャンセル'}</button>
+      <button style="padding:12px;border-radius:8px;font-weight:900;font-size:11px;background:${isCritical?'linear-gradient(135deg,#ff1e5a,#7b0019)':'linear-gradient(135deg,#ffa726,#c25e00)'};color:#fff;border:none;cursor:pointer;letter-spacing:1px;" onclick="_executePendingConfirm()">${opts.confirmLabel || 'OK'}</button>
+    </div>
+  `;
+  window._pendingConfirm = onConfirm;
+  document.getElementById('modal').classList.add('active');
+  SFX.error();
+}
+function _executePendingConfirm(){
+  const fn = window._pendingConfirm;
+  window._pendingConfirm = null;
+  closeModal();
+  if(typeof fn === 'function') fn();
+}
+
 // ---------- TOAST ----------
 function toast(msg, type=''){
   if(type==='error') SFX.error(); else SFX.toast();
@@ -5507,6 +5959,187 @@ function init(){
   document.getElementById('modal').addEventListener('click',(e)=>{
     if(e.target.id==='modal') closeModal();
   });
+}
+
+// ---------- PVP (CODE EXCHANGE) ----------
+function encodeTeamCode(name, team){
+  // Compact representation: name|spId,ovr,evo,skill1+skill2|...
+  // Limit to 5 monsters
+  const slots = team.slice(0,5).map(m => {
+    const skills = (m.skills||[]).join('+');
+    return `${m.spId},${m.ovr},${m.evo||0},${skills}`;
+  }).join('|');
+  const payload = (name || 'Trainer').replace(/\|/g,'_').slice(0,16) + '#' + slots;
+  // Base64-url encode for safe sharing
+  return 'MAE1-' + btoa(unescape(encodeURIComponent(payload))).replace(/=+$/, '').replace(/\+/g,'-').replace(/\//g,'_');
+}
+function decodeTeamCode(code){
+  if(!code || !code.startsWith('MAE1-')) return null;
+  try {
+    const raw = code.slice(5).replace(/-/g,'+').replace(/_/g,'/');
+    const pad = '='.repeat((4 - raw.length % 4) % 4);
+    const payload = decodeURIComponent(escape(atob(raw + pad)));
+    const [name, slotsStr] = payload.split('#');
+    if(!slotsStr) return null;
+    const team = slotsStr.split('|').map(s => {
+      const [spId, ovr, evo, skills] = s.split(',');
+      const sp = SPECIES.find(x => x.id === spId);
+      if(!sp) return null;
+      const o = parseInt(ovr) || sp.base;
+      const ev = parseInt(evo) || 0;
+      const sks = skills ? skills.split('+').filter(x=>x) : [];
+      const baseStats = genStats(o);
+      // Apply evolution bonuses
+      if(ev > 0){
+        baseStats.atk += ev * 8;
+        baseStats.def += ev * 7;
+        baseStats.hp += ev * 60;
+      }
+      return {
+        spId: sp.id, name: sp.name, art: sp.art, img: sp.img || null,
+        type: sp.type, ovr: o, rarity: rarityFromOvr(o),
+        evo: ev, skills: sks,
+        stats: baseStats,
+        legendary: sp.legendary || o >= 130,
+        mythic: sp.mythic || o === 136,
+        hp: baseStats.hp, maxHp: baseStats.hp, burn: 0, alive: true,
+      };
+    }).filter(x => x);
+    return { name: name || 'Trainer', team };
+  } catch(e){ console.error(e); return null; }
+}
+
+function getMyTeamCode(){
+  const myName = state.playerName || 'You';
+  const pool = state.monsters.filter(m=>!m.listed).sort((a,b)=>b.ovr-a.ovr).slice(0,5);
+  if(pool.length === 0) return null;
+  return encodeTeamCode(myName, pool);
+}
+
+function renderPvP(){
+  const c = document.getElementById('pvp-content');
+  if(!c) return;
+  const myCode = getMyTeamCode();
+  const wins = (state.pvpWins||0);
+  const losses = (state.pvpLosses||0);
+  c.innerHTML = `
+    <div style="background:linear-gradient(180deg,rgba(0,0,0,0.5),rgba(0,0,0,0.85)),url(${(UI_IMG&&UI_IMG.home_banner_pvp)||''}) center/cover;height:160px;border-radius:16px;display:flex;align-items:flex-end;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,0.6);">
+      <div>
+        <div style="font-size:11px;font-weight:900;color:#ffd700;letter-spacing:3px;">⚔ PVP ARENA</div>
+        <h2 style="font-size:22px;font-weight:900;text-shadow:0 2px 6px #000;">フレンド対戦</h2>
+        <p style="font-size:11px;opacity:0.9;margin-top:4px;text-shadow:0 1px 3px #000;">コードを交換して全国のプレイヤーと対戦</p>
+      </div>
+    </div>
+
+    <div style="background:linear-gradient(135deg,#1e1e3f,#2a1845);border:1px solid #ffd700aa;border-radius:14px;padding:14px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div>
+          <div style="font-size:11px;opacity:0.7;letter-spacing:2px;">PVP RECORD</div>
+          <div style="font-size:18px;font-weight:900;margin-top:3px;">
+            <span style="color:#4ecdc4;">${wins}勝</span> /
+            <span style="color:#ff5e8a;">${losses}敗</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;opacity:0.7;letter-spacing:2px;">RANK</div>
+          <div style="font-size:14px;font-weight:900;color:#ffd700;margin-top:3px;">${getPvPRank(wins,losses)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">📤 自分のチームコード（友達に送信）</div>
+    <div style="background:#1a1a3e;border:1px solid #ffd70044;border-radius:10px;padding:10px;margin-bottom:8px;">
+      <input id="my-team-code" readonly value="${myCode || 'モンスターを入手してください'}" style="background:#0a0a18;border:1px solid #ffffff22;color:#ffd700;width:100%;padding:8px;border-radius:6px;font-family:monospace;font-size:11px;word-break:break-all;">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+      <button class="evo-button" style="padding:10px;font-size:11px;letter-spacing:1px;" onclick="copyTeamCode()">📋 コピー</button>
+      <button class="evo-button" style="padding:10px;font-size:11px;letter-spacing:1px;background:linear-gradient(135deg,#4ecdc4,#1e63c8);" onclick="shareTeamCode()">📤 シェア</button>
+    </div>
+
+    <div class="section-title">📥 相手のコードを入力して対戦</div>
+    <div style="background:#1a1a3e;border:1px solid #4ecdc488;border-radius:10px;padding:10px;margin-bottom:8px;">
+      <input id="opp-team-code" placeholder="MAE1-xxxxx..." style="background:#0a0a18;border:1px solid #ffffff22;color:#fff;width:100%;padding:8px;border-radius:6px;font-family:monospace;font-size:11px;">
+    </div>
+    <button class="evo-button" style="width:100%;background:linear-gradient(135deg,#ff1e5a,#7b2ff7,#ffd700);" onclick="startPvPBattle()">⚔ 対戦開始</button>
+
+    <div class="section-title" style="margin-top:18px;">📜 過去の対戦履歴</div>
+    <div id="pvp-history" style="display:flex;flex-direction:column;gap:6px;"></div>
+  `;
+  renderPvPHistory();
+}
+
+function renderPvPHistory(){
+  const h = document.getElementById('pvp-history');
+  if(!h) return;
+  const hist = state.pvpHistory || [];
+  if(hist.length === 0){
+    h.innerHTML = '<div class="empty" style="padding:14px;">まだ対戦履歴はありません</div>';
+    return;
+  }
+  h.innerHTML = hist.slice(-10).reverse().map(r => `
+    <div style="background:#1a1a3e;border-left:4px solid ${r.result==='win'?'#4ecdc4':'#ff5e8a'};border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:12px;font-weight:900;">vs ${r.oppName}</div>
+        <div style="font-size:9px;opacity:0.6;">${new Date(r.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div style="font-size:14px;font-weight:900;color:${r.result==='win'?'#4ecdc4':'#ff5e8a'};">${r.result==='win'?'WIN':'LOSE'}</div>
+    </div>
+  `).join('');
+}
+
+function getPvPRank(w, l){
+  const total = w + l;
+  if(total < 3) return 'NOVICE 🥚';
+  const ratio = w / total;
+  if(ratio > 0.8 && w >= 20) return 'LEGEND 👑';
+  if(ratio > 0.7 && w >= 10) return 'MASTER ⭐';
+  if(ratio > 0.6) return 'EXPERT 💎';
+  if(ratio > 0.5) return 'VETERAN 🛡';
+  if(ratio > 0.3) return 'FIGHTER ⚔';
+  return 'ROOKIE 🎓';
+}
+
+function copyTeamCode(){
+  const inp = document.getElementById('my-team-code');
+  if(!inp) return;
+  inp.select();
+  try { navigator.clipboard.writeText(inp.value); toast('✓ コピー完了'); SFX.coinGet(); }
+  catch(e){ document.execCommand('copy'); toast('✓ コピー完了'); }
+}
+function shareTeamCode(){
+  const inp = document.getElementById('my-team-code');
+  if(!inp || !inp.value || inp.value.includes('入手')) { toast('チーム未編成','error'); return; }
+  const txt = `【MONSTER ARENA EVOLVE】対戦コード:\n${inp.value}\n\nゲームを開いてPvP画面から入力すれば対戦できます！`;
+  if(navigator.share){
+    navigator.share({title:'対戦しよう！', text:txt}).catch(()=>{});
+  } else {
+    copyTeamCode();
+    toast('コードをコピー、LINE等で送信を');
+  }
+}
+function startPvPBattle(){
+  const code = (document.getElementById('opp-team-code')||{}).value || '';
+  if(!code.trim()){ toast('コードを入力','error'); return; }
+  const decoded = decodeTeamCode(code.trim());
+  if(!decoded || !decoded.team || decoded.team.length === 0){ toast('無効なコード','error'); return; }
+  const pTeam = buildPlayerTeam(5);
+  if(pTeam.length === 0){ toast('モンスターがいません','error'); return; }
+  stopBGM();
+  const eTeam = decoded.team.map(m => ({...m}));
+  const pActives = Array.from({length:Math.min(3,pTeam.length)}, (_,i)=>i);
+  const eActives = Array.from({length:Math.min(3,eTeam.length)}, (_,i)=>i);
+  battleState = {
+    di: -2, si: 0, drop: {coin: 5000, gem: 30},
+    boss: false, isPvP: true, oppName: decoded.name,
+    pTeam, eTeam, pActives, eActives,
+    log:[],
+  };
+  document.getElementById('battle-bg').className = 'battle-bg dungeon-5'; // cosmic backdrop for PvP
+  renderBattle();
+  document.getElementById('battle-overlay').classList.add('active');
+  SFX.bossAppear();
+  setTimeout(()=>playBossBGM(), 800);
+  toast(`⚔ ${decoded.name} と対戦開始！`);
 }
 
 // ---------- HOME BANNER CAROUSEL ----------
