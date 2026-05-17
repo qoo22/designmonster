@@ -1475,12 +1475,22 @@ img{-webkit-user-drag:none;}
 }
 
 /* ========== EVOLVE OVERLAY ========== */
+/* モバイル対策: 内容が長い時にスクロールできるようにし、続けるボタンを必ず押せるようにする */
 #evo-overlay{
   position:fixed;inset:0;z-index:1000;
   background:rgba(0,0,0,0.95);display:none;
-  align-items:center;justify-content:center;flex-direction:column;gap:20px;
+  flex-direction:column;
+  /* スクロール許可 */
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:20px 16px calc(40px + env(safe-area-inset-bottom));
 }
 #evo-overlay.active{display:flex;}
+#evo-overlay-content{
+  width:100%;max-width:480px;
+  margin:auto;          /* 縦中央寄せだが、内容が長ければ上から流れる */
+  display:flex;flex-direction:column;align-items:center;gap:20px;
+}
 .evo-result{
   font-size:48px;font-weight:900;letter-spacing:4px;
   animation:evoBoom 0.6s;
@@ -6266,7 +6276,7 @@ function showEvoAnimation(m, rate, targetEvo){
         <div style="font-size:14px;color:#ffd700;font-weight:900;letter-spacing:2px;">OVR +${ovrBoost} / +${m.evo}進到達！</div>
         ${diffPanel}
         ${onMission('evolve_success', m.evo)}
-        <button class="battle-btn" onclick="closeEvoOverlay()">続ける</button>
+        <button class="battle-btn evo-close-btn" onclick="closeEvoOverlay()" style="width:100%;max-width:380px;padding:16px;font-size:15px;letter-spacing:3px;margin-top:8px;">続ける</button>
       `;
     } else {
       c.innerHTML = `
@@ -6277,7 +6287,7 @@ function showEvoAnimation(m, rate, targetEvo){
           素材は失われたが、本体は無事だ。<br>
           <b style="color:#ff1e5a;">もう一度挑むか？</b>
         </div>
-        <button class="battle-btn" onclick="closeEvoOverlay()">受け入れる</button>
+        <button class="battle-btn evo-close-btn" onclick="closeEvoOverlay()" style="width:100%;max-width:380px;padding:16px;font-size:15px;letter-spacing:3px;margin-top:8px;">受け入れる</button>
       `;
     }
     save();
@@ -8470,6 +8480,18 @@ async function init(){
   document.getElementById('modal').addEventListener('click',(e)=>{
     if(e.target.id==='modal') closeModal();
   });
+  // 進化オーバーレイの背景タップでも閉じられる（モバイル安全対策）
+  // ただし結果表示時のみ（進化中＝EVOLUTION ATTEMPT 表示中は無効）
+  const evoOv = document.getElementById('evo-overlay');
+  if(evoOv){
+    evoOv.addEventListener('click',(e)=>{
+      // 直接 overlay を押した時だけ閉じる（内部要素のクリックは伝播させない）
+      if(e.target.id !== 'evo-overlay') return;
+      // 結果表示中（successまたはfailの evo-result が存在する）でなければ無視
+      const hasResult = evoOv.querySelector('.evo-result.success, .evo-result.fail');
+      if(hasResult) closeEvoOverlay();
+    });
+  }
 }
 
 // ---------- PVP (CODE EXCHANGE) ----------
