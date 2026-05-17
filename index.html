@@ -1557,20 +1557,23 @@ img{-webkit-user-drag:none;}
 .battle-controls{
   display:grid;
   grid-template-columns:repeat(5,1fr);
-  gap:6px;
-  padding:6px calc(8px + var(--sal)) 6px calc(8px + var(--sar));
+  gap:7px;
+  padding:10px calc(10px + var(--sal)) 10px calc(10px + var(--sar));
 }
 .battle-controls .battle-btn{
-  padding:10px 4px;font-size:11px;letter-spacing:0;
+  padding:15px 5px;font-size:13px;letter-spacing:0;
   white-space:nowrap;overflow:hidden;text-overflow:clip;
-  min-width:0;
+  min-width:0;font-weight:900;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  min-height:48px;
 }
 @media (max-width:380px){
-  .battle-controls{padding:5px 6px;gap:4px;}
-  .battle-controls .battle-btn{padding:8px 2px;font-size:10px;}
+  .battle-controls{padding:8px 8px;gap:5px;}
+  .battle-controls .battle-btn{padding:13px 3px;font-size:12px;min-height:44px;}
 }
 @media (max-width:330px){
-  .battle-controls .battle-btn{padding:7px 1px;font-size:9px;letter-spacing:-0.5px;}
+  .battle-controls .battle-btn{padding:11px 2px;font-size:11px;letter-spacing:-0.5px;min-height:40px;}
 }
 
 /* ===== TEAM ROSTER ===== */
@@ -1760,7 +1763,7 @@ img{-webkit-user-drag:none;}
   top:calc(85px + var(--sat));
 }
 .active-row.players{
-  bottom:calc(155px + var(--sab));  /* above bottom panel (roster ~70 + controls ~60) */
+  bottom:calc(175px + var(--sab));  /* above bottom panel (roster ~70 + larger controls ~80) */
   flex-direction:row-reverse;
 }
 .active-fighter{
@@ -1847,7 +1850,7 @@ img{-webkit-user-drag:none;}
 }
 
 @media (max-width:380px){
-  .active-row.players{bottom:calc(140px + var(--sab));}
+  .active-row.players{bottom:calc(160px + var(--sab));}
   .active-row.enemies{top:calc(70px + var(--sat));}
   .active-fighter{max-width:100px;}
   .af-portrait{width:80px;height:80px;}
@@ -1859,7 +1862,7 @@ img{-webkit-user-drag:none;}
   .active-fighter{max-width:84px;}
   .af-portrait{width:70px;height:70px;}
   .active-row{gap:3px;left:4px;right:4px;}
-  .active-row.players{bottom:calc(125px + var(--sab));}
+  .active-row.players{bottom:calc(145px + var(--sab));}
 }
 .battle-btn{
   background:linear-gradient(135deg,#ff6b35,#f7931e);
@@ -2546,7 +2549,7 @@ img{-webkit-user-drag:none;}
       <div class="name">QUEST</div>
       <div class="sub">12ダンジョン</div>
     </button>
-    <button class="tile tile-img tile-evolve-bg" onclick="nav('evolve')">
+    <button class="tile tile-img tile-evolve-bg" onclick="state.evolveTarget=null;state.evolveMaterials=[];nav('evolve')">
       <span class="ico">✨</span>
       <div class="name">EVOLVE</div>
       <div class="sub">1進〜10進</div>
@@ -2676,7 +2679,7 @@ img{-webkit-user-drag:none;}
   <button class="nav-btn" data-screen="quest" onclick="nav('quest')"><span class="ico">🗺️</span>QUEST</button>
   <button class="nav-btn" data-screen="pvp" onclick="nav('pvp')"><span class="ico">⚔</span>PVP</button>
   <button class="nav-btn" data-screen="mission" onclick="nav('mission')"><span class="ico">🎯</span>MISSION</button>
-  <button class="nav-btn" data-screen="evolve" onclick="nav('evolve')"><span class="ico">✨</span>EVOLVE</button>
+  <button class="nav-btn" data-screen="evolve" onclick="state.evolveTarget=null;state.evolveMaterials=[];nav('evolve')"><span class="ico">✨</span>EVOLVE</button>
   <button class="nav-btn" data-screen="box" onclick="nav('box')"><span class="ico">📦</span>BOX</button>
   <button class="nav-btn" data-screen="market" onclick="nav('market')"><span class="ico">🏪</span>MARKET</button>
 </div>
@@ -4186,13 +4189,98 @@ function setEvolveTarget(uid){
   state.evolveTarget = uid;
   state.evolveMaterials = [];
   closeModal();
-  nav('evolve');
+  // If we're already on EVOLVE screen, just re-render
+  if(document.getElementById('screen-evolve').classList.contains('active')){
+    renderEvolve();
+    SFX.coinGet();
+  } else {
+    nav('evolve');
+  }
 }
 
 function renderEvolve(){
   const c = document.getElementById('evolve-content');
   if(!state.evolveTarget){
-    c.innerHTML = `<div class="empty"><span class="ico">✨</span>モンスターを選んで進化させよう。<br>ボックスでカードを選び「進化する」を押すとここに来る。</div>`;
+    // === Show picker grid directly in EVOLVE screen ===
+    const _r = {N:0,R:1,SR:2,SSR:3,UR:4,LR:5};
+    // Eligible: not at max evo (10), not listed
+    const candidates = state.monsters
+      .filter(m => !m.listed && (m.evo||0) < 10)
+      .sort((a,b) => {
+        const sA = a.ovr + (a.evo||0)*5 + (_r[a.rarity]||0)*3 + (a.mythic?25:0);
+        const sB = b.ovr + (b.evo||0)*5 + (_r[b.rarity]||0)*3 + (b.mythic?25:0);
+        return sB - sA;
+      });
+    if(candidates.length === 0){
+      c.innerHTML = `<div class="empty"><span class="ico">✨</span>進化できるモンスターがいません<br>ガチャを引いてみよう</div>`;
+      return;
+    }
+    // Stats: max evo achieved, total evos
+    const maxEvo = Math.max(0, ...state.monsters.map(m=>m.evo||0));
+    const evoCount = state.monsters.filter(m=>(m.evo||0)>0).length;
+    const matStr = state.mat;
+    c.innerHTML = `
+      <div style="background:linear-gradient(135deg,#1e0a3e,#3a1865);border:2px solid #b964ff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 0 16px rgba(185,100,255,0.3);">
+        <div style="font-size:16px;font-weight:900;text-align:center;color:#fff;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(90deg,#b964ff,#ff6bff,#b964ff);background-size:200% 100%;animation:bgShift 3s linear infinite;-webkit-background-clip:text;background-clip:text;color:transparent;">✨ EVOLVE ✨</div>
+        <p style="font-size:11px;text-align:center;opacity:0.9;line-height:1.6;margin-top:4px;">進化させたいモンスターをタップ。<br>同名／低OVR素材で進化ゲージを貯め、ギャンブルに挑戦！</p>
+      </div>
+
+      <!-- Player stats summary card -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+        <div style="background:linear-gradient(135deg,#1a1a3e,#2a1845);border:1px solid #ffd70066;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:9px;opacity:0.7;letter-spacing:1px;">最高進化</div>
+          <div style="font-size:22px;font-weight:900;color:#ffd700;line-height:1.1;margin-top:2px;">+${maxEvo}</div>
+          <div style="font-size:8px;opacity:0.5;">${maxEvo>=10?'伝説':maxEvo>=7?'達人':maxEvo>=5?'中級':maxEvo>=3?'初級':'未挑戦'}</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#1a1a3e,#2a1845);border:1px solid #4ecdc466;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:9px;opacity:0.7;letter-spacing:1px;">進化済</div>
+          <div style="font-size:22px;font-weight:900;color:#4ecdc4;line-height:1.1;margin-top:2px;">${evoCount}<span style="font-size:11px;opacity:0.6;">体</span></div>
+          <div style="font-size:8px;opacity:0.5;">/ ${state.monsters.length}体中</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#1a1a3e,#2a1845);border:1px solid #ff6bff66;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:9px;opacity:0.7;letter-spacing:1px;">進化石</div>
+          <div style="font-size:22px;font-weight:900;color:#ff6bff;line-height:1.1;margin-top:2px;">🔮 ${matStr}</div>
+          <div style="font-size:8px;opacity:0.5;">所持中</div>
+        </div>
+      </div>
+
+      <!-- Probability mini-table -->
+      <div style="background:rgba(0,0,0,0.4);border-left:3px solid #ffd700;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:10px;line-height:1.6;">
+        <div style="color:#ffd700;font-weight:900;margin-bottom:4px;letter-spacing:1px;">📊 進化成功確率（ゲージMAX時）</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;text-align:center;margin-top:6px;">
+          <div><div style="opacity:0.6;font-size:9px;">1進</div><b style="color:#4ecdc4;">100%</b></div>
+          <div><div style="opacity:0.6;font-size:9px;">3進</div><b style="color:#4ecdc4;">85%</b></div>
+          <div><div style="opacity:0.6;font-size:9px;">5進</div><b style="color:#ffa726;">50%</b></div>
+          <div><div style="opacity:0.6;font-size:9px;">7進</div><b style="color:#ff5e8a;">12%</b></div>
+          <div><div style="opacity:0.6;font-size:9px;">10進</div><b style="color:#ff1e5a;">2%</b></div>
+        </div>
+      </div>
+
+      <div class="section-title">進化対象を選択 (${candidates.length}体)</div>
+      <div class="inv-grid" id="evo-target-grid"></div>
+
+      <div style="margin-top:14px;padding:10px;background:rgba(78,205,196,0.08);border:1px dashed #4ecdc466;border-radius:8px;font-size:10px;line-height:1.7;opacity:0.85;">
+        💡 <b style="color:#4ecdc4;">Tips</b><br>
+        ・同じ種族のモンスターを素材にすると進化ゲージが <b style="color:#ffd700;">+30%</b>（通常は+15%）<br>
+        ・対象と同OVR以上の素材で <b style="color:#ffd700;">追加+10%</b><br>
+        ・5進化以上は失敗時の損失が大きいので素材を厳選しよう<br>
+        ・10進到達カードはマーケットで <b style="color:#ff6bff;">超高額</b> で取引される
+      </div>
+    `;
+    const grid = document.getElementById('evo-target-grid');
+    grid.innerHTML = candidates.map(m => {
+      const nextEvo = (m.evo||0) + 1;
+      const rates = {1:100,2:95,3:85,4:65,5:50,6:25,7:12,8:7,9:4,10:2};
+      const baseRate = rates[nextEvo] || 0;
+      return `
+        <div onclick="setEvolveTarget(${m.uid})" style="cursor:pointer;position:relative;">
+          ${cardHtml(m,'mini').replace(/onclick="[^"]+"/,'')}
+          <div style="position:absolute;bottom:18px;left:3px;right:3px;background:linear-gradient(90deg,#b964ff,#7b2ff7);color:#fff;font-size:8px;text-align:center;padding:2px;font-weight:900;border-radius:4px;border:1px solid #fff5;">
+            ${nextEvo===11?'MAX':'→ +'+nextEvo+' ('+baseRate+'%)'}
+          </div>
+        </div>
+      `;
+    }).join('');
     return;
   }
   const m = state.monsters.find(x=>x.uid===state.evolveTarget);
