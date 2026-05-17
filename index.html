@@ -3913,15 +3913,41 @@ async function _idbDelete(key){
   } catch(e){}
 }
 
-// state を「進捗スコア」に変換（縮小判定に使う）
+// state の進化統計を集計（圧縮形 m.e / 旧 m.evo どちらも対応）
+function _evolutionStats(mons){
+  const stats = {e10:0, e9:0, e8:0, e5plus:0, anyEvo:0, total:0};
+  if(!Array.isArray(mons)) return stats;
+  for(const m of mons){
+    if(!m) continue;
+    stats.total++;
+    const e = (m.evo !== undefined ? m.evo : m.e) || 0;
+    if(e >= 10) stats.e10++;
+    else if(e === 9) stats.e9++;
+    else if(e === 8) stats.e8++;
+    if(e >= 5) stats.e5plus++;
+    if(e > 0) stats.anyEvo++;
+  }
+  return stats;
+}
+
+// state を「進捗スコア」に変換
+// ★ 最優先評価: 10進化 >> 9進化 >> 8進化 >> 5+進化 >> 進化済 >> 総数 >> 資源
+//   旧データを淘汰する時、高進化体が多いセーブを必ず残すための判定材料
+//   ※ 時間優先は別途 sort 内で行われる。これは「同時刻なら大事な方を選ぶ」用。
 function _progressScore(stateOrJson){
   try {
     const s = typeof stateOrJson === 'string' ? JSON.parse(stateOrJson) : stateOrJson;
     if(!s || typeof s !== 'object') return -1;
-    const mons = (s.monsters||[]).length;
-    const gem = s.gem||0, coin = s.coin||0, mat = s.mat||0;
-    // モンスター数が圧倒的に支配。資源は補正。
-    return mons * 1000 + Math.floor(gem) + Math.floor(coin/100) + mat*10;
+    const st = _evolutionStats(s.monsters);
+    return st.e10     * 1000000   // 10進化体: 圧倒的最重要
+         + st.e9      *  100000   // 9進化体
+         + st.e8      *   10000   // 8進化体
+         + st.e5plus  *    1000   // 5進化以上
+         + st.anyEvo  *     100   // 進化済全般
+         + st.total   *      10   // 総数
+         + (s.gem||0)
+         + Math.floor((s.coin||0)/1000)
+         + (s.mat||0)*5;
   } catch(e){ return -1; }
 }
 
@@ -4100,6 +4126,77 @@ async function _requestPersistentStorage(){
 }
 
 // ============================================================
+// shrink_backup の自動整理
+//   IDB 内に貯まった shrink_backup_* / pre_reset_* を走査し、
+//   高進化体スコアで順位付け → 上位 N 件だけ保持、残りは削除
+//   容量逼迫時にも「貴重な進化済セーブが残る」設計
+// ============================================================
+async function _pruneShrinkBackups(maxKeep = 5){
+  try {
+    const allKeys = await _idbAllKeys();
+    const buKeys = allKeys.filter(k => typeof k === 'string'
+      && k.startsWith('shrink_backup_')
+      && !k.endsWith('_ts'));
+    if(buKeys.length <= maxKeep) return;
+    // 各バックアップを評価
+    const scored = [];
+    for(const k of buKeys){
+      const v = await _idbGet(k);
+      if(!v) continue;
+      let score = -1, ts = 0;
+      try {
+        const p = JSON.parse(v);
+        score = _progressScore(p);
+      } catch(_){}
+      const m = k.match(/shrink_backup_(\d+)/);
+      if(m) ts = parseInt(m[1]);
+      scored.push({key:k, score, ts});
+    }
+    // 並び順: スコア降順、同点なら新しい方を残す
+    scored.sort((a,b) => (b.score - a.score) || (b.ts - a.ts));
+    // 上位 maxKeep 件を残し、残りを削除
+    const toDelete = scored.slice(maxKeep);
+    for(const it of toDelete){
+      await _idbDelete(it.key);
+      console.log(`pruned shrink_backup: ${it.key} (score=${it.score})`);
+    }
+    if(toDelete.length > 0){
+      console.log(`pruned ${toDelete.length} shrink_backups, kept top ${maxKeep} by evolution score`);
+    }
+  } catch(e){ console.warn('pruneShrinkBackups failed', e); }
+}
+
+// ============================================================
+// saveSeq の初期化: localStorage が消えても IDB の最大 seq から
+// 引き継いで再開する（カウンタが巻き戻らない保証）
+// ============================================================
+async function _initSaveSeq(){
+  let seq = parseInt(localStorage.getItem('mae_save_seq') || '0', 10) || 0;
+  try {
+    const main = await _idbGet('main');
+    if(main){
+      try {
+        const p = JSON.parse(main);
+        if(p && p._seq && p._seq > seq) seq = p._seq;
+      } catch(_){}
+    }
+    // 全 snapshot からも最大値を拾う
+    const keys = ['snap_milestone','snap_daily','snap_weekly'];
+    for(const k of keys){
+      const v = await _idbGet(k);
+      if(v){
+        try {
+          const p = JSON.parse(v);
+          if(p && p._seq && p._seq > seq) seq = p._seq;
+        } catch(_){}
+      }
+    }
+  } catch(e){ console.warn('initSaveSeq failed', e); }
+  _saveSeq = seq;
+  console.log('_saveSeq initialized to', _saveSeq);
+}
+
+// ============================================================
 // load(): localStorage から復元（同期）
 //   v3: 旧 mae_save_main_at_save / mae_save_prev は読み取り fallback には残す
 //   （既存ユーザーのデータがそこに残っている可能性があるため）
@@ -4225,18 +4322,22 @@ function _showRecoveryChoiceDialog(candidates){
     const items = uniq.map((c, idx) => {
       const p = c.parsed;
       const mons = (p.monsters||[]).length;
+      const st = _evolutionStats(p.monsters);
+      const evoLine = (st.e10+st.e9+st.e8) > 0
+        ? `<span style="color:#ffd700;">⭐ 高進化:</span><b style="color:#ffd700;">10進=${st.e10} / 9進=${st.e9} / 8進=${st.e8}</b>`
+        : `<span>⭐ 進化済:</span><b>${st.anyEvo}体</b>`;
       return `
         <div style="background:#1a1a3e;border:2px solid ${idx===0?'#ffd700':'#ffffff22'};border-radius:10px;padding:12px;margin-bottom:10px;">
           <div style="font-size:11px;color:#4ecdc4;font-weight:900;letter-spacing:1px;margin-bottom:6px;">
-            ${idx===0?'<span style="color:#ffd700;">★最良</span> ':''}${sourceLabel(c.key)}
+            ${idx===0?'<span style="color:#ffd700;">★最新</span> ':''}${sourceLabel(c.key)}
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:11px;line-height:1.6;">
+            <span>📅 保存時刻:</span><b style="color:#aaa;">${fmtAgo(c.ts)}</b>
             <span>🐉 モンスター:</span><b style="color:#fff;">${mons}体</b>
+            ${evoLine}
             <span>💎 ジェム:</span><b style="color:#9af;">${p.gem||0}</b>
             <span>🪙 コイン:</span><b style="color:#fc6;">${p.coin||0}</b>
             <span>🔩 素材:</span><b style="color:#fa6;">${p.mat||0}</b>
-            <span>🔥 ログイン連続:</span><b>${(p.progress&&p.progress.loginStreak)||0}日</b>
-            <span>📅 保存時刻:</span><b style="color:#aaa;">${fmtAgo(c.ts)}</b>
           </div>
           <button onclick="_recoveryPick(${idx})" style="margin-top:8px;width:100%;padding:10px;border-radius:8px;font-weight:900;font-size:12px;background:linear-gradient(135deg,#4ecdc4,#1e63c8);color:#fff;border:none;cursor:pointer;letter-spacing:1px;">⤴ このデータで起動</button>
         </div>
@@ -4271,54 +4372,77 @@ function _showRecoveryChoiceDialog(candidates){
 // ============================================================
 async function attemptIDBRecovery(){
   try {
+    // ============================================================
+    // === ABSOLUTE PRIORITY: IDB.main を常に最優先する ===
+    // main は save() で毎回上書きされる「最新セーブの正本」。
+    // これが有効なら何があってもこれを採用し、snapshot は無視する。
+    // → 「古い snap_milestone が新しい main より勝つ」事故を完全排除。
+    // ============================================================
+    const manualTs = await _idbGet('manual_restore_ts');
+    const mainRaw = await _idbGet('main');
+    if(mainRaw){
+      try {
+        const parsed = JSON.parse(mainRaw);
+        if(parsed && Array.isArray(parsed.monsters) && parsed.monsters.length > 0){
+          // 手動復元の痕跡があり、他に違う snapshot が存在する場合のみダイアログ
+          if(manualTs){
+            const all = await _collectAllSaveCandidates();
+            const distinct = [];
+            const seen = new Set();
+            for(const c of all){
+              if(seen.has(c.data)) continue;
+              seen.add(c.data); distinct.push(c);
+            }
+            // main 以外の異なる候補がある場合だけ選択ダイアログ
+            if(distinct.length >= 2){
+              distinct.sort((a,b) => (b.ts - a.ts) || (b.seq - a.seq) || (b.score - a.score));
+              const chosen = await _showRecoveryChoiceDialog(distinct);
+              await _idbDelete('manual_restore_ts');
+              if(!chosen) return false;
+              await _applyRecovery(chosen);
+              setTimeout(()=>{
+                try { toast(`💾 ${chosen.parsed.monsters.length}体のセーブを復元しました`); } catch(e){}
+              }, 600);
+              return true;
+            }
+          }
+          // main を絶対採用
+          const mainTs = await _idbGet('main_ts');
+          const candidate = {
+            key: 'main',
+            data: mainRaw,
+            parsed,
+            score: _progressScore(parsed),
+            ts: mainTs || 0,
+            seq: parsed._seq || 0,
+          };
+          await _applyRecovery(candidate);
+          if(manualTs) await _idbDelete('manual_restore_ts');
+          setTimeout(()=>{
+            try { toast(`💾 ${parsed.monsters.length}体のセーブを自動復元しました (最新)`); } catch(e){}
+          }, 600);
+          return true;
+        }
+      } catch(e){
+        console.warn('main parse failed, falling back to snapshots', e);
+      }
+    }
+    // ============================================================
+    // FALLBACK: main が空 or 壊れている時のみ snapshot から復元
+    // ============================================================
     const all = await _collectAllSaveCandidates();
     if(all.length === 0) return false;
     const currentScore = _progressScore(state);
     const useful = all.filter(c => c.score > currentScore);
     if(useful.length === 0) return false;
-    // 並び替え: seq (新しい順) を最優先、次に score (高い順)、最後に ts (新しい順)
-    // → 「直前のセーブが必ず最優先される」ことを保証
-    useful.sort((a,b) => (b.seq - a.seq) || (b.score - a.score) || (b.ts - a.ts));
-    // 同一データを圧縮（main と snap_milestone が同じ JSON なら 1 件として扱う）
-    const seenData = new Set();
-    const distinct = useful.filter(c => {
-      if(seenData.has(c.data)) return false;
-      seenData.add(c.data); return true;
-    });
-    const manualTs = await _idbGet('manual_restore_ts');
+    // 最新のタイムスタンプを優先（次に seq、最後に score）
+    useful.sort((a,b) => (b.ts - a.ts) || (b.seq - a.seq) || (b.score - a.score));
     const best = useful[0];
-    // ダイアログを出す条件:
-    //   ① 手動復元の痕跡（manual_restore_ts）があり、かつ
-    //      候補が distinct で 2 件以上ある（= 違うデータが混在している）
-    //   ② distinct 候補が 2 件以上で、スコアが大きく異なる（>30%）
-    // それ以外は黙って best を自動復元する（毎回ダイアログを出さない）
-    const second = distinct[1];
-    const scoreGap = second ? (best.score - second.score) / Math.max(1, best.score) : 0;
-    const needAsk = (
-      (!!manualTs && distinct.length >= 2) ||
-      (distinct.length >= 2 && scoreGap > 0.3)
-    );
-    if(needAsk){
-      console.warn(`recovery: prompting user. manual=${!!manualTs} distinct=${distinct.length} gap=${scoreGap.toFixed(2)}`);
-      const chosen = await _showRecoveryChoiceDialog(distinct);
-      // 選択が完了したら manual_restore_ts は消費する（次回からは通常運用）
-      await _idbDelete('manual_restore_ts');
-      if(!chosen){
-        // 「どれも使わない」を選んだ → 復元せず、starterで開始
-        return false;
-      }
-      await _applyRecovery(chosen);
-      setTimeout(()=>{
-        try { toast(`💾 ${chosen.parsed.monsters.length}体のセーブを復元しました`); } catch(e){}
-      }, 600);
-      return true;
-    }
-    // 自動復元（confirm なし）
+    console.warn(`main missing/invalid → falling back to ${best.key}`);
     await _applyRecovery(best);
-    // 自動復元できたので manual_restore_ts も消費（あれば）
     if(manualTs) await _idbDelete('manual_restore_ts');
     setTimeout(()=>{
-      try { toast(`💾 ${best.parsed.monsters.length}体のセーブを自動復元しました (${best.key})`); } catch(e){}
+      try { toast(`⚠ メイン破損のため snapshot から復元 (${best.key})`); } catch(e){}
     }, 800);
     return true;
   } catch(e){ console.warn('IDB recovery failed', e); return false; }
@@ -8522,6 +8646,10 @@ function toast(msg, type=''){
 
 // ---------- INIT ----------
 async function init(){
+  // saveSeq を IDB から最大値を引き継いで初期化（LS が消えても seq が巻き戻らない）
+  await _initSaveSeq();
+  // 起動時に shrink_backup を整理（容量管理＋高進化体保護）
+  _pruneShrinkBackups(5).catch(e => console.warn('startup prune failed', e));
   // CRITICAL: before creating starter pack, check IDB for prior save
   // 自動復元（confirm無し）。IDBに大きな進捗が眠っていたら問答無用で復元。
   if(state.monsters.length === 0){
