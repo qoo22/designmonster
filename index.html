@@ -3944,25 +3944,59 @@ function _sameWeek(a, b){
 //     なので localStorage には書かず、世代管理は IDB 側のみで行う。
 //   - localStorage.setItem 失敗時は明示的にトーストで通知（黙って失敗しない）。
 // ============================================================
+// ============================================================
+// === SAVE v3: 1トランザクション化＋saveSeq＋in-flight追跡 ===
+//   - IDB 全書込を 1 transaction に集約 → 30-50ms 程度で完了
+//   - _saveSeq を単調増加カウンタとして全 snapshot に埋め込み
+//   - load 時は saveSeq が最大のものを選ぶ (score より優先)
+//   - _saveInFlight でフラッシュ可能な Promise を公開
+// ============================================================
+let _saveSeq = 0;
+let _saveInFlight = null;
+
+// 1トランザクションで複数のキーを put（途中で中断されにくい）
+async function _idbPutBatch(pairs){
+  try {
+    const db = await _openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      for(const [k, v] of pairs){
+        store.put(v, k);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch(e){ console.warn('idbPutBatch failed', e); }
+}
+
 function save(){
   if(_suspendAutoSave){ console.warn('save() suspended'); return; }
+  // saveSeq を localStorage と sync して取得
+  if(_saveSeq === 0){
+    _saveSeq = parseInt(localStorage.getItem('mae_save_seq') || '0', 10) || 0;
+  }
+  _saveSeq++;
   let data;
   try {
-    // 派生フィールド（img/name/art等）を剥がしてから直列化（容量1/100以下）
-    data = JSON.stringify(_minifyStateForSave(state));
+    // 直列化前に saveSeq を埋め込む（IDBに保存される全コピーに付く）
+    const stateForSave = _minifyStateForSave(state);
+    stateForSave._seq = _saveSeq;
+    data = JSON.stringify(stateForSave);
   } catch(e){
     console.error('save: JSON.stringify failed', e);
     try { toast('セーブ失敗（state直列化エラー）', 'error'); } catch(_){}
     return;
   }
   const myScore = _progressScore(state);
+  const t = Date.now();
+  _saveTimestamp = t;
   // ===== localStorage（同期・即時）=====
-  let lsOK = false;
   try {
     localStorage.setItem('mae_save', data);
-    localStorage.setItem('mae_save_ts', String(Date.now()));
-    _saveTimestamp = Date.now();
-    lsOK = true;
+    localStorage.setItem('mae_save_ts', String(t));
+    localStorage.setItem('mae_save_seq', String(_saveSeq));
   } catch(e){
     console.error('save: localStorage.setItem failed', e);
     // クォータ超過の可能性 → 古い不要キーを掃除して再試行
@@ -3970,53 +4004,99 @@ function save(){
       localStorage.removeItem('mae_save_prev');
       localStorage.removeItem('mae_save_main_at_save');
       localStorage.setItem('mae_save', data);
-      localStorage.setItem('mae_save_ts', String(Date.now()));
-      _saveTimestamp = Date.now();
-      lsOK = true;
-      console.warn('save: localStorage 再試行で成功（古い旧キーを削除）');
+      localStorage.setItem('mae_save_ts', String(t));
+      localStorage.setItem('mae_save_seq', String(_saveSeq));
     } catch(e2){
       console.error('save: localStorage 再試行も失敗', e2);
       try { toast('⚠ ローカル保存失敗（容量超過）IDBには保存済', 'error'); } catch(_){}
     }
   }
-  // ===== IndexedDB（非同期・冗長保護）=====
-  (async () => {
+  // ===== IndexedDB（非同期、1トランザクション化）=====
+  _saveInFlight = (async () => {
     try {
-      const existing = await _idbGet('main');
-      const existingScore = existing ? _progressScore(existing) : -1;
-      // ① 縮小チェック：既存より明らかに小さくなる場合は shrink_backup に退避
-      if(existingScore > myScore + 50){
+      // 縮小チェックは別 tx で先に（書き込み量が増えるため通常 tx と分ける）
+      let existing = null, existingScore = -1, existingSeq = -1;
+      try {
+        existing = await _idbGet('main');
+        if(existing){
+          existingScore = _progressScore(existing);
+          try { existingSeq = (JSON.parse(existing)._seq) || -1; } catch(_){}
+        }
+      } catch(_){}
+      // 縮小ガード：seq が古い場合のみ shrink_backup へ退避
+      // （seq が新しければそれは「正規の縮小」なので退避不要）
+      if(existingScore > myScore + 50 && existingSeq < _saveSeq){
         const now = Date.now();
         if(now - _lastShrinkBackup > 60000){
-          await _idbPut('shrink_backup_'+now, existing);
+          await _idbPutBatch([['shrink_backup_'+now, existing]]);
           _lastShrinkBackup = now;
-          console.warn(`save(): 進捗減少を検知 (${existingScore}→${myScore})。shrink_backup_${now} に退避。`);
+          console.warn(`save(): 進捗減少を検知 (${existingScore}→${myScore}, seq ${existingSeq}→${_saveSeq})。shrink_backup_${now}`);
         }
       }
-      await _idbPut('main', data);
-      await _idbPut('main_ts', _saveTimestamp || Date.now());
-      // ② daily / weekly スナップショット
+      // メイン書込: main / main_ts / 必要なら snap_daily / snap_weekly / snap_milestone を
+      // 1 トランザクションで一気に書く
+      const writes = [
+        ['main', data],
+        ['main_ts', t],
+      ];
+      // daily snapshot
       const lastDaily = await _idbGet('snap_daily_ts');
-      const t = _saveTimestamp || Date.now();
       if(!lastDaily || !_sameDay(lastDaily, t)){
-        await _idbPut('snap_daily', data);
-        await _idbPut('snap_daily_ts', t);
+        writes.push(['snap_daily', data]);
+        writes.push(['snap_daily_ts', t]);
       }
       const lastWeekly = await _idbGet('snap_weekly_ts');
       if(!lastWeekly || !_sameWeek(lastWeekly, t)){
-        await _idbPut('snap_weekly', data);
-        await _idbPut('snap_weekly_ts', t);
+        writes.push(['snap_weekly', data]);
+        writes.push(['snap_weekly_ts', t]);
       }
-      // ③ milestone スナップショット
       const ms = await _idbGet('snap_milestone');
       const msScore = ms ? _progressScore(ms) : -1;
       if(myScore > msScore){
-        await _idbPut('snap_milestone', data);
-        await _idbPut('snap_milestone_ts', t);
+        writes.push(['snap_milestone', data]);
+        writes.push(['snap_milestone_ts', t]);
       }
+      await _idbPutBatch(writes);
     } catch(e){ console.warn('idb save chain failed', e); }
   })();
   updateSaveIndicator();
+  return _saveInFlight;
+}
+
+// ============================================================
+// 終了時フラッシュ: visibilitychange (hidden) / pagehide で
+// 飛行中の save() を await（best-effort）
+// ============================================================
+function _setupSaveFlushOnHide(){
+  let flushing = false;
+  const flush = async () => {
+    if(flushing || !_saveInFlight) return;
+    flushing = true;
+    try {
+      // Promise.race で最大 200ms 待つ（実際には数十ms で完了するはず）
+      await Promise.race([_saveInFlight, new Promise(r => setTimeout(r, 250))]);
+    } catch(_){}
+    flushing = false;
+  };
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'hidden') flush();
+  });
+  window.addEventListener('pagehide', flush);
+  window.addEventListener('beforeunload', flush);
+}
+
+// ============================================================
+// 永続ストレージ要求 (iOS Safari の自動退避を抑制)
+// ============================================================
+async function _requestPersistentStorage(){
+  try {
+    if(navigator.storage && navigator.storage.persist){
+      const granted = await navigator.storage.persist();
+      console.log('persistent storage:', granted ? 'GRANTED' : 'NOT GRANTED');
+      return granted;
+    }
+  } catch(e){ console.warn('persist request failed', e); }
+  return false;
 }
 
 // ============================================================
@@ -4081,7 +4161,8 @@ async function _collectAllSaveCandidates(){
         const m = k.match(/_(\d{10,})$/);
         if(m) ts = parseInt(m[1]);
       }
-      out.push({key:k, data:v, parsed, score:_progressScore(parsed), ts: ts||0});
+      const seq = parsed._seq || 0;
+      out.push({key:k, data:v, parsed, score:_progressScore(parsed), ts: ts||0, seq});
     } catch(e){}
   }
   return out;
@@ -4195,7 +4276,9 @@ async function attemptIDBRecovery(){
     const currentScore = _progressScore(state);
     const useful = all.filter(c => c.score > currentScore);
     if(useful.length === 0) return false;
-    useful.sort((a,b) => b.score - a.score);
+    // 並び替え: seq (新しい順) を最優先、次に score (高い順)、最後に ts (新しい順)
+    // → 「直前のセーブが必ず最優先される」ことを保証
+    useful.sort((a,b) => (b.seq - a.seq) || (b.score - a.score) || (b.ts - a.ts));
     // 同一データを圧縮（main と snap_milestone が同じ JSON なら 1 件として扱う）
     const seenData = new Set();
     const distinct = useful.filter(c => {
@@ -8492,6 +8575,11 @@ async function init(){
       if(hasResult) closeEvoOverlay();
     });
   }
+  // === セーブ永続化の追加保証 ===
+  // ① iOS Safari など自動退避の強いブラウザ向けに永続ストレージを要求
+  _requestPersistentStorage();
+  // ② タブ切替・閉じる前に飛行中のIDB書き込みをフラッシュ
+  _setupSaveFlushOnHide();
 }
 
 // ---------- PVP (CODE EXCHANGE) ----------
