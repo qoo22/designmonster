@@ -1544,11 +1544,28 @@ img{-webkit-user-drag:none;}
 
 .battle-controls{
   position:absolute;
-  bottom:calc(20px + var(--sab));
-  left:0;right:0;
-  display:flex;justify-content:center;gap:8px;z-index:5;
-  padding:0 calc(8px + var(--sal)) 0 calc(8px + var(--sar));
-  flex-wrap:wrap;
+  bottom:0;left:0;right:0;
+  padding:8px calc(8px + var(--sal)) calc(8px + var(--sab)) calc(8px + var(--sar));
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+  z-index:50;
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,0.85) 40%,rgba(0,0,0,0.95));
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  border-top:1px solid rgba(255,215,0,0.3);
+}
+.battle-controls .battle-btn{
+  padding:10px 4px;font-size:11px;letter-spacing:0;
+  white-space:nowrap;overflow:hidden;text-overflow:clip;
+  min-width:0;
+}
+@media (max-width:380px){
+  .battle-controls{padding:6px 8px calc(6px + var(--sab));gap:4px;}
+  .battle-controls .battle-btn{padding:9px 2px;font-size:10px;}
+}
+@media (max-width:330px){
+  .battle-controls .battle-btn{padding:8px 1px;font-size:9px;letter-spacing:-0.5px;}
 }
 
 /* ===== TEAM ROSTER ===== */
@@ -1561,7 +1578,13 @@ img{-webkit-user-drag:none;}
   top:calc(8px + var(--sat));
 }
 .team-roster.bottom{
-  bottom:calc(78px + var(--sab));
+  bottom:calc(75px + var(--sab));
+}
+@media (max-width:380px){
+  .team-roster.bottom{bottom:calc(68px + var(--sab));}
+  .team-roster.top{top:calc(4px + var(--sat));}
+  .roster-slot{width:46px;}
+  .roster-name{font-size:7px;}
 }
 .roster-slot{
   width:54px;flex:0 0 auto;
@@ -1730,13 +1753,14 @@ img{-webkit-user-drag:none;}
   top:calc(85px + var(--sat));
 }
 .active-row.players{
-  bottom:calc(160px + var(--sab));
+  bottom:calc(170px + var(--sab));
   flex-direction:row-reverse;
 }
 .active-fighter{
   flex:1;max-width:130px;
   display:flex;flex-direction:column;align-items:center;gap:4px;
-  position:relative;pointer-events:auto;
+  position:relative;
+  pointer-events:none;  /* not clickable — buttons take all clicks */
 }
 .active-fighter.dying{animation:fighterDie 0.6s forwards;}
 @keyframes fighterDie{
@@ -1817,6 +1841,7 @@ img{-webkit-user-drag:none;}
 
 @media (max-width:380px){
   .active-row.players{bottom:calc(150px + var(--sab));}
+  .active-row.enemies{top:calc(70px + var(--sat));}
   .active-fighter{max-width:100px;}
   .af-portrait{width:80px;height:80px;}
   .af-portrait .emoji{font-size:48px;}
@@ -1827,6 +1852,7 @@ img{-webkit-user-drag:none;}
   .active-fighter{max-width:84px;}
   .af-portrait{width:70px;height:70px;}
   .active-row{gap:3px;left:4px;right:4px;}
+  .active-row.players{bottom:calc(140px + var(--sab));}
 }
 .battle-btn{
   background:linear-gradient(135deg,#ff6b35,#f7931e);
